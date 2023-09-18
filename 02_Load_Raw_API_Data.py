@@ -5,8 +5,8 @@
 
 
 #  Main function
-def main(url):
-    # first list the variables needed and open Snowpark session
+def main():
+    # first list any variables needed and open Snowpark session
     
     # make the API call on "url" - include testing for err's in try/catch/exception block
 
@@ -21,3 +21,5 @@ def main(url):
     pass
 
 
+def get_parks_rec(url, session):
+    pass
