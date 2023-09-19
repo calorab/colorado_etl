@@ -2,6 +2,8 @@
 
 # need snowpark, pandas,
 from snowflake.snowpark import Session
+import requests
+import json
 # Keep the URL's here - maybe in a tuple and loop over it
 
 
@@ -29,8 +31,18 @@ def main():
     #  close session
 
 
-def get_parks_rec(url, session):
-    pass
+def get_parks_rec():
+    print("inside parks")
+    apiKey = {"X-Api-Key": "mLeZrzDzwF8fhMmxnhTg4RvgTSclubh8vt4DAFRg"}
+    try:
+        data = requests.get('https://developer.nps.gov/api/v1/parks?stateCode=CO&fields=addresses', headers=apiKey)
+    finally:
+        results = data.json()
+        # print(f'API Status: {data.status}')
+        # pretty_data = json.dumps(results.total, indent=4)
+        with open('response.json', 'w') as f:
+            json.dump(results, f, indent=4)
 
 
-main()
+
+get_parks_rec()
