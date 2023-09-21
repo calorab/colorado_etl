@@ -30,11 +30,36 @@ def main():
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
 
+    #  create raw JSON formatted data table
+    try:
+        pass
+    except snowflake.connector.errors.ProgrammingError as e:
+        print(f'\t {e}')
+    
+
+     #  create flattened JSON formatted data table
+    try:
+        pass
+    except snowflake.connector.errors.ProgrammingError as e:
+        print(f'\t {e}')
+    finally:
+        # drop raw data table (NOT FLATTENED DATA!!!!!!!!!!!)
+        pass
+
+
+     #  create parks data table from flattened data
     try:
         pass
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
 
+    raw_script = """
+        SELECT VALUE FROM """
+    
+    mapped_script = """
+
+
+    """
 
 
 def get_parks_rec():
@@ -44,46 +69,53 @@ def get_parks_rec():
     data = requests.get('https://developer.nps.gov/api/v1/parks?stateCode=CO&fields=addresses', headers=apiKey)
     
     results = data.json()
-    if not os.path.exists('response.json'):
+
+    if not os.path.exists('parksrec.json'):
         with open('parksrec.json', 'w') as f:
             json.dump(results, f, indent=4)
 
     
 """
-Example for copying staged jaon data:account
-
-{
-   "location": {
-      "state_city": "MA-Lexington",
-      "zip": "40503"
-   },
-   "sale_date": "2017-3-5",
-   "price": "275836"
-}
-
-COPY INTO home_sales(city, state, zip, sale_date, price)
-   FROM (SELECT SUBSTR($1:location.state_city,4),
-                SUBSTR($1:location.state_city,1,2),
-                $1:location.zip,
-                to_timestamp_ntz($1:sale_date),
-                $1:price
-         FROM @sf_tut_stage/sales.json.gz t)
-   ON_ERROR = 'continue';
-
-   
-$1 in the SELECT query refers to the single column where the JSON is stored. The query also uses the following functions:
+1 stage the data
+2 copy into table with format JSON (raw_data) 
+3 use a create table as select statement to create a table from flattened (flattened_data) in order to keep the JSON format for changes and bug searching
+3a drop raw_data table
+4 Create final table for parks a'la the below
 
 
-The SUBSTR , SUBSTRING function to extract city and state values from state_city JSON key.
-The TO_TIMESTAMP / TO_TIMESTAMP_* to cast the sale_date JSON key value to a timestamp.
+Below: src is the column of JSON data in raw script
+"::" is to cast as a type - if omitted the type is variant
+VALUE is the output of the FLATTEN function including the values for the flattened data
+
+create or replace table events as
+  select
+    src:device_type::string                             as device_type
+  , src:version::string                                 as version
+  , value:f::number                                     as f
+  , value:rv::variant                                   as rv
+  , value:t::number                                     as t
+  , value:v.ACHZ::number                                as achz
+  , value:v.ACV::number                                 as acv
+  , value:v.DCA::number                                 as dca
+  , value:v.DCV::number                                 as dcv
+  , value:v.ENJR::number                                as enjr
+  , value:v.ERRS::number                                as errs
+  , value:v.MXEC::number                                as mxec
+  , value:v.TMPI::number                                as tmpi
+  , value:vd::number                                    as vd
+  , value:z::number                                     as z
+  from
+    raw_source
+  , lateral flatten ( input => SRC:events );
+
+  
+    The SUBSTR , SUBSTRING function to extract city and state values from state_city JSON key.
+    The TO_TIMESTAMP / TO_TIMESTAMP_* to cast the sale_date JSON key value to a timestamp.
 
 
-Execute the following query to verify data is copied.
+    Execute the following query to verify data is copied.
 
-SELECT * from home_sales;
-
-
-
+    SELECT * from home_sales;
 
 """
 

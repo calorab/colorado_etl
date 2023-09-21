@@ -47,6 +47,9 @@ CREATE OR REPLACE SCHEMA ANALYTICS;
 CREATE OR REPLACE SCHEMA WEBSCRAPE;
 CREATE OR REPLACE SCHEMA EXTERNAL;
 
+-- tables
+
+CREATE OR REPLACE TABLE parks_api_data;
 
 -- ----------------------------------------------------------------------------
 -- Step #4: Create the pipeline objects
