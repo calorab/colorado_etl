@@ -49,7 +49,7 @@ CREATE OR REPLACE SCHEMA EXTERNAL;
 
 -- tables
 
-CREATE OR REPLACE TABLE parks_api_data;
+CREATE OR REPLACE TABLE raw_parks_api_data (SRC VARIANT);
 
 -- ----------------------------------------------------------------------------
 -- Step #4: Create the pipeline objects
