@@ -2,35 +2,36 @@
 
 # need snowpark, pandas,
 import os
-from snowflake.snowpark import Session
+import snowflake.connector 
 import requests
 import json
-import pandas as pd
-# Keep the URL's here - maybe in a tuple and loop over it
+
+# Keep the URL's here - maybe in a tuple and loop over it (??)
 
 
 #  Main function
-def main(session):
+def main():
     # first list any variables needed and open Snowpark session
-    conn_params: dict = {
-        "account": "omb53008.us-east-1",
-        "user": "ETLPROG2023",
-        "password": "NHqLFb2X6#CgoLtn"
-    }
+    get_parks_rec()
+    # Set up connection to Snowflake
+    conn = snowflake.connector.connect(
+        user='ETLPROG2023',
+        password='NHqLFb2X6#CgoLtn',
+        account='omb53008.us-east-1'
+    )
 #  https://omb53008.us-east-1.snowflakecomputing.com
     
-    new_session = Session.builder.configs(conn_params).create()
-    #  some code here
-    new_session.close()
-    # make the API call on "url" - include testing for err's in try/catch/exception block
+    # Create a cursor object
+    cur = conn.cursor()
 
-    # assign the returned data to var
+    try:
+        # Upload the JSON data file to the Snowflake stage
+        cur.execute("PUT 'file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/response.json' @api_stage;")
+    except snowflake.connector.errors.ProgrammingError as e:
+        print(e)
 
-    #   if data type JSON - upload to raw table (or whatever SF recommends - UPDATE HERE WHEN YOU KNOW)
-    #       Need to use Snowpark for session object, and writing sql with python
-    #   if data type CSV use pandas to upload to table
 
-    #  close session
+
 
 
 def get_parks_rec():
@@ -40,20 +41,16 @@ def get_parks_rec():
     data = requests.get('https://developer.nps.gov/api/v1/parks?stateCode=CO&fields=addresses', headers=apiKey)
     
     results = data.json()
-    # The below for shits and giggles bc it won't work in a SF worksheet:
-    # if not os.path.exists('response.json'):
-    #     with open('response.json', 'w') as f:
-    #         json.dump(results, f, indent=4)
+    if not os.path.exists('response.json'):
+        with open('parksrec.json', 'w') as f:
+            json.dump(results, f, indent=4)
 
-    # df = pd.read_json('response.json')
-    """
-    CALEB - here is the plan:
-        since this is going to run in a worksheet we cannot write it to a file
-        1 - get data as above
-        2 - 
-        2a - Create a task (?) that runs another SQL worksheet that contains the steps from here: https://docs.snowflake.com/en/user-guide/script-data-load-transform-json
-        2b - Follow these instructions in order to  
     
-    """
+
+
+
+
+
+
 
 get_parks_rec()

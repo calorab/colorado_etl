@@ -48,3 +48,13 @@ CREATE OR REPLACE SCHEMA WEBSCRAPE;
 CREATE OR REPLACE SCHEMA EXTERNAL;
 
 
+-- ----------------------------------------------------------------------------
+-- Step #4: Create the pipeline objects
+-- ----------------------------------------------------------------------------
+
+-- Format
+CREATE OR REPLACE FILE FORMAT api_json_format
+  TYPE = 'JSON';
+
+CREATE OR REPLACE STAGE api_stage
+  FILE_FORMAT = api_json_format;
