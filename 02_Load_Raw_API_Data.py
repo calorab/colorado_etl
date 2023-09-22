@@ -12,7 +12,7 @@ import json
 #  Main function
 def main():
     # first list any variables needed and open Snowpark session
-    get_parks_rec()
+    # get_parks_rec()
     # Set up connection to Snowflake
     conn = snowflake.connector.connect(
         user='ETLPROG2023',
@@ -23,10 +23,14 @@ def main():
     
     # Create a cursor object
     cur = conn.cursor()
+    cur.execute('USE ROLE COL_ADMIN;')
+    cur.execute('USE DATABASE COLORADO;')
+    cur.execute('USE SCHEMA EXTERNAL;')
+    cur.execute('USE WAREHOUSE COL_WH;')
+
 
     # Stage the parks JSON data
     try:
-        # !!!CALEB - before first run create the stage and format!!!
         cur.execute("PUT 'file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/parksrec.json' @api_stage AUTO_COMPRESS=TRUE;")
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
@@ -34,14 +38,25 @@ def main():
 
     #  create raw JSON formatted data table
     try:
-        pass
+        raw_script = """
+            COPY INTO raw_parks_api_data
+            FROM @api_stage
+            FILE_FORMAT = (TYPE = JSON); 
+        """
+        cur.execute(raw_script)
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
     
 
      #  create flattened JSON formatted data table
     try:
-        pass
+        flattened_script = """
+            CREATE TABLE flattened_parks_api_data as
+            SELECT VALUE
+            FROM raw_parks_api_data,
+            LATERAL FLATTEN(INPUT => SRC:data)
+        """
+        cur.execute(flattened_script)
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
     finally:
@@ -51,58 +66,54 @@ def main():
 
      #  create parks data table from flattened data
     try:
-        pass
+        parks_script = """
+            CREATE OR REPLACE TABLE parks_api_data as
+                SELECT 
+                    value:id::string                as park_id,
+                    value:fullName::string          as name,
+                    value:description::string       as description,
+                    value:latitude::number          as latitude,
+                    value:longitude::number         as longitude,
+                    value:states::string            as states,
+                    value:images[0].url::string     as image_1,
+                    value:images[0].title::string   as title_image_1,
+                    value:images[1].url::string     as image_2,
+                    value:images[1].title::string   as title_image_2,
+                    value:weatherInfo::string       as weather_climate,
+                    value:designation::string       as designation
+                FROM
+                    flattened_parks_api_data,
+                    LATERAL FLATTEN(INPUT => src:data);
+        """
+        cur.execute(parks_script)
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
 
-    raw_script = """
-        COPY INTO raw_parks_api_data
-        FROM @api_stage
-        FILE_FORMAT = (TYPE = JSON); """
-    
-    flattened_script = """
-        CREATE TABLE flattened_parks_api_data as
-        SELECT VALUE
-        FROM raw_parks_api_data,
-        LATERAL FLATTEN(INPUT => SRC:data)
-    """
 
-    parks_script = """
-        CREATE OR REPLACE TABLE parks_api_data as
-            SELECT 
-                value:id::string                as park_id,
-                value:fullName::string          as name,
-                value:description::string       as description,
-                value:latitude::number          as latitude,
-                value:longitude::number         as longitude,
-                value:states::string            as states,
-                value:images[0].url::string     as image_1,
-                value:images[0].title::string   as title_image_1,
-                value:images[1].url::string     as image_2,
-                value:images[1].title::string   as title_image_2,
-                value:weatherInfo::string       as weather_climate,
-                value:designation::string       as designation
-            FROM
-                flattened_parks_api_data,
-                LATERAL FLATTEN(INPUT => src:data);
-    """
+     #  create parks adress data table from flattened data
+    try:
+        address_script = """
+            CREATE OR REPLACE TABLE parks_api_data as
+                SELECT 
+                    value:id::string                            as park_id,
+                    value:addresses[0].postalCode::string       as zipcode
+                    value:addresses[0].city::string             as city
+                    value:addresses[0].stateCode::string        as state
+                    value:addresses[0].line1::string            as address_line1
+                    value:addresses[0].type::string             as address_type
+                    value:addresses[0].line3::string            as address_line3
+                    value:addresses[0].line2::string            as address_line2
+                FROM
+                    flattened_parks_api_data,
+                    LATERAL FLATTEN(INPUT => src:data);
+        """
+        cur.execute(address_script)
+    except snowflake.connector.errors.ProgrammingError as e:
+        print(f'\t {e}')
+    finally:
+        conn.close()
 
 
-    address_script = """
-        CREATE OR REPLACE TABLE parks_api_data as
-            SELECT 
-                value:id::string                            as park_id,
-                value:addresses[0].postalCode::string       as zipcode
-                value:addresses[0].city::string             as city
-                value:addresses[0].stateCode::string        as state
-                value:addresses[0].line1::string            as address_line1
-                value:addresses[0].type::string             as address_type
-                value:addresses[0].line3::string            as address_line3
-                value:addresses[0].line2::string            as address_line2
-            FROM
-                flattened_parks_api_data,
-                LATERAL FLATTEN(INPUT => src:data);
-    """
 
 
 def get_parks_rec():
