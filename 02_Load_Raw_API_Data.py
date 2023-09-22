@@ -51,63 +51,12 @@ def main():
      #  create flattened JSON formatted data table
     try:
         flattened_script = """
-            CREATE TABLE flattened_parks_api_data as
+            CREATE OR REPLACE TABLE flattened_parks_api_data as
             SELECT VALUE
             FROM raw_parks_api_data,
             LATERAL FLATTEN(INPUT => SRC:data)
         """
         cur.execute(flattened_script)
-    except snowflake.connector.errors.ProgrammingError as e:
-        print(f'\t {e}')
-    finally:
-        # remove raw data table (NOT FLATTENED DATA!!!!!!!!!!!)
-        pass
-
-
-     #  create parks data table from flattened data
-    try:
-        parks_script = """
-            CREATE OR REPLACE TABLE parks_api_data as
-                SELECT 
-                    value:id::string                as park_id,
-                    value:fullName::string          as name,
-                    value:description::string       as description,
-                    value:latitude::number          as latitude,
-                    value:longitude::number         as longitude,
-                    value:states::string            as states,
-                    value:images[0].url::string     as image_1,
-                    value:images[0].title::string   as title_image_1,
-                    value:images[1].url::string     as image_2,
-                    value:images[1].title::string   as title_image_2,
-                    value:weatherInfo::string       as weather_climate,
-                    value:designation::string       as designation
-                FROM
-                    flattened_parks_api_data,
-                    LATERAL FLATTEN(INPUT => src:data);
-        """
-        cur.execute(parks_script)
-    except snowflake.connector.errors.ProgrammingError as e:
-        print(f'\t {e}')
-
-
-     #  create parks adress data table from flattened data
-    try:
-        address_script = """
-            CREATE OR REPLACE TABLE parks_api_data as
-                SELECT 
-                    value:id::string                            as park_id,
-                    value:addresses[0].postalCode::string       as zipcode
-                    value:addresses[0].city::string             as city
-                    value:addresses[0].stateCode::string        as state
-                    value:addresses[0].line1::string            as address_line1
-                    value:addresses[0].type::string             as address_type
-                    value:addresses[0].line3::string            as address_line3
-                    value:addresses[0].line2::string            as address_line2
-                FROM
-                    flattened_parks_api_data,
-                    LATERAL FLATTEN(INPUT => src:data);
-        """
-        cur.execute(address_script)
     except snowflake.connector.errors.ProgrammingError as e:
         print(f'\t {e}')
     finally:
