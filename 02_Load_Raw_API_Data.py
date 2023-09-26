@@ -13,6 +13,7 @@ import json
 def main():
     # first list any variables needed and open Snowpark session
     # get_parks_rec()
+
     # Set up connection to Snowflake
     conn = snowflake.connector.connect(
         user='ETLPROG2023',
@@ -78,6 +79,53 @@ def get_parks_rec():
             json.dump(results, f, indent=4)
 
     
+def get_poi_data():
+    #  Geoapify API for points of interest base url: https://api.geoapify.com/v2/places?PARAMS
+    api_key = 'fca84109c53b4439aa9e4c2ca1348525'
+    data = requests.get()
+    
+    results = data.json()
+
+    if not os.path.exists('parksrec.json'):
+        with open('parksrec.json', 'w') as f:
+            json.dump(results, f, indent=4)
+    
+    pass
+
+
+
+
+def get_community_data():
+    # getting neighborhood,
+    #  api key for ATTOM (onBoard informatics or whatever it was called) base url: https://api.gateway.attomdata.com/v4/
+    api_key = 'fd6837b6e4d8b044e387568b072a363f'
+    url_base = 'https://api.gateway.attomdata.com/v4/neighborhood/community?geoIdV4='
+    header = {'APIKey': api_key}
+    geo_ids = {"Adams": "5c3a6ba1bdd969d35b89bbc7944f281d", 
+               "Arapahoe": "df0f229947fc78b15e21005d5ba933a9", 
+               "Boulder": "4c746922ad37c5e0e9c397a1d56cbd50", 
+               "Denver": "1291dc1937525d78f89cebb6a43a50de", 
+               "Douglas": "3ba5f4b1a7a6fec2eb0c023ca9e19e91", 
+               "El Paso": "ca5cf064d0a92eb05d781c257c087ce5", 
+               "Jefferson": "2251fecccd50ac4b7d79f31dc864b8f4", 
+               "Larimer": "3eccdb33ca70f1537c5498e2e205ce0b"}
+    
+    for k,v in geo_ids.items():
+
+        file_name = k + '_data.json'
+        url_string = url_base + v
+
+        print(f'File Name: {file_name}')
+        print(f'Full URL String: {url_string}')
+        # data = requests.get()
+        
+        # results = data.json()
+
+        # if not os.path.exists('parksrec.json'):
+        #     with open('parksrec.json', 'w') as f:
+        #         json.dump(results, f, indent=4)
+        
+
 """
 1 stage the data
 2 copy into table with format JSON (raw_data) 
@@ -127,5 +175,5 @@ create or replace table events as
 
 
 
-main()
+get_community_data()
 
