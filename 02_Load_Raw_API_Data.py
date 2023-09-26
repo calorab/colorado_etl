@@ -110,21 +110,29 @@ def get_community_data():
                "Jefferson": "2251fecccd50ac4b7d79f31dc864b8f4", 
                "Larimer": "3eccdb33ca70f1537c5498e2e205ce0b"}
     
+    # Create the folder for the JSON documents if it doesn't exist
+    if not os.path.exists('JSON_Docs'):
+        os.makedirs('JSON_Docs')
+    
+    
     for k,v in geo_ids.items():
 
+        # create file name and url string
         file_name = k + '_data.json'
         url_string = url_base + v
-
-        print(f'File Name: {file_name}')
-        print(f'Full URL String: {url_string}')
-        # data = requests.get()
         
-        # results = data.json()
-
-        # if not os.path.exists('parksrec.json'):
-        #     with open('parksrec.json', 'w') as f:
-        #         json.dump(results, f, indent=4)
+        data = requests.get(url_string, headers=header)
         
+        results = data.json()
+
+        # Write the JSON data to a file in the JSON_Docs folder
+        file_path = os.path.join('JSON_Docs', file_name)
+        with open(file_path, 'w') as f:
+            json.dump(results, f, indent=4)
+        
+
+
+
 
 """
 1 stage the data
@@ -169,9 +177,6 @@ create or replace table events as
     SELECT * from home_sales;
 
 """
-
-
-
 
 
 
