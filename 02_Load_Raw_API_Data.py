@@ -48,11 +48,11 @@ def main():
         #  create raw JSON formatted data table
         try:
             unique_raw_name = 'raw_comm_' + db_addition
-            raw_script = f'CREATE OR REPLACE TABLE {unique_raw_name} FROM @api_stage FILE_FORMAT = (TYPE = JSON);'
+            raw_script = f"CREATE OR REPLACE TABLE {unique_raw_name} AS SELECT $1 FROM @api_stage (FILE_FORMAT => 'api_json_format');"
             cur.execute(raw_script)
         except snowflake.connector.errors.ProgrammingError as e:
             print(f'\t {e}')
-        finally:
+        else:
             # clear the stage of all files
             cur.execute("REMOVE @api_stage")    
         
