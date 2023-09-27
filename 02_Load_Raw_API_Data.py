@@ -11,7 +11,8 @@ import json
 
 #  Main function
 def main():
-    # first list any variables needed and open Snowpark session
+    # Make the API calls and create files
+    # get_community_data()
     # get_parks_rec()
 
     # Set up connection to Snowflake
@@ -20,9 +21,8 @@ def main():
         password='NHqLFb2X6#CgoLtn',
         account='omb53008.us-east-1'
     )
-#  https://omb53008.us-east-1.snowflakecomputing.com
     
-    # Create a cursor object
+    # Create a the snowflake cursor object
     cur = conn.cursor()
     cur.execute('USE ROLE COL_ADMIN;')
     cur.execute('USE DATABASE COLORADO;')
@@ -30,14 +30,13 @@ def main():
     cur.execute('USE WAREHOUSE COL_WH;')
 
     # Get a list of all the files in the JSON_Docs folder
-    folder_path = 'file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/JSON_Docs'
+    folder_path = 'JSON_Docs'
     file_list = os.listdir(folder_path)
 
     # Loop through the list of files and perform an action on each file
     for file_name in file_list:
-        file_path = os.path.join(folder_path, file_name)
-        
-        unique_file_name = folder_path + '/' + file_name
+        unique_file_name = os.path.join('file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/JSON_Docs', file_name)
+        db_addition = os.path.splitext(file_name)[0]
 
         # Stage the parks JSON data
         try:
@@ -48,26 +47,27 @@ def main():
 
         #  create raw JSON formatted data table
         try:
-            db_addition = os.path.splitext(file_name)[0]
             unique_raw_name = 'raw_comm_' + db_addition
             raw_script = f'CREATE OR REPLACE TABLE {unique_raw_name} FROM @api_stage FILE_FORMAT = (TYPE = JSON);'
             cur.execute(raw_script)
         except snowflake.connector.errors.ProgrammingError as e:
             print(f'\t {e}')
-            
-        
-
-        #  create flattened JSON formatted data table
-        try:
-            unique_flat_name = 'flat_comm_' + db_addition
-            flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM raw_parks_api_data, LATERAL FLATTEN(INPUT => SRC:data)'
-            cur.execute(flattened_script)
-        except snowflake.connector.errors.ProgrammingError as e:
-            print(f'\t {e}')
         finally:
             # clear the stage of all files
-            cur.execute("REMOVE @api_stage")
-                
+            cur.execute("REMOVE @api_stage")    
+        
+
+        #  create flattened JSON formatted data table for files that need it
+        if file_name in ('parksrec.json'):
+            try:
+                unique_flat_name = 'flat_comm_' + db_addition
+                # CALEB - need to make a change here to get flattened
+                flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM {unique_raw_name}, LATERAL FLATTEN(INPUT => SRC:data)'
+                cur.execute(flattened_script)
+            except snowflake.connector.errors.ProgrammingError as e:
+                print(f'\t {e}')
+                        
+    
     # end the Snowflake session
     conn.close()
 
@@ -75,28 +75,22 @@ def main():
 
 
 def get_parks_rec():
-    print("inside parks")
     apiKey = {"X-Api-Key": "mLeZrzDzwF8fhMmxnhTg4RvgTSclubh8vt4DAFRg"}
+    target_location = 'JSON_Docs/parksrec.json'
 
-    data = requests.get('https://developer.nps.gov/api/v1/parks?stateCode=CO&fields=addresses', headers=apiKey)
-    
-    results = data.json()
+    if not os.path.exists(target_location):
+        data = requests.get('https://developer.nps.gov/api/v1/parks?stateCode=CO&fields=addresses', headers=apiKey)
+        
+        results = data.json()
 
-    if not os.path.exists('parksrec.json'):
-        with open('parksrec.json', 'w') as f:
+        with open(target_location, 'w') as f:
             json.dump(results, f, indent=4)
 
     
 def get_poi_data():
     #  Geoapify API for points of interest base url: https://api.geoapify.com/v2/places?PARAMS
     api_key = 'fca84109c53b4439aa9e4c2ca1348525'
-    data = requests.get()
-    
-    results = data.json()
-
-    if not os.path.exists('parksrec.json'):
-        with open('parksrec.json', 'w') as f:
-            json.dump(results, f, indent=4)
+    pass
     
 
 def get_community_data():
@@ -122,7 +116,11 @@ def get_community_data():
     for k,v in geo_ids.items():
 
         # create file name and url string
-        file_name = k + '_data.json'
+        if k == "El Paso":
+            file_name = 'ElPaso_data.json'
+        else:
+            file_name = k + '_data.json'
+        
         url_string = url_base + v
 
         data = requests.get(url_string, headers=header)
@@ -131,8 +129,9 @@ def get_community_data():
 
         # Write the JSON data to a file in the JSON_Docs folder
         file_path = os.path.join('JSON_Docs', file_name)
-        with open(file_path, 'w') as f:
-            json.dump(results, f, indent=4)
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as f:
+                json.dump(results, f, indent=4)
 
 
 
@@ -204,5 +203,5 @@ create or replace table events as
             pass
 """
 
-get_community_data()
+main()
 
