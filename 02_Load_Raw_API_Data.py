@@ -29,39 +29,47 @@ def main():
     cur.execute('USE SCHEMA EXTERNAL;')
     cur.execute('USE WAREHOUSE COL_WH;')
 
+    # Get a list of all the files in the JSON_Docs folder
+    folder_path = 'file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/JSON_Docs'
+    file_list = os.listdir(folder_path)
 
-    # Stage the parks JSON data
-    try:
-        cur.execute("PUT 'file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/parksrec.json' @api_stage AUTO_COMPRESS=TRUE;")
-    except snowflake.connector.errors.ProgrammingError as e:
-        print(f'\t {e}')
+    # Loop through the list of files and perform an action on each file
+    for file_name in file_list:
+        file_path = os.path.join(folder_path, file_name)
+        
+        unique_file_name = folder_path + '/' + file_name
+
+        # Stage the parks JSON data
+        try:
+            cur.execute(f'PUT {unique_file_name} @api_stage AUTO_COMPRESS=TRUE;')
+        except snowflake.connector.errors.ProgrammingError as e:
+            print(f'\t {e}')
 
 
-    #  create raw JSON formatted data table
-    try:
-        raw_script = """
-            COPY INTO raw_parks_api_data
-            FROM @api_stage
-            FILE_FORMAT = (TYPE = JSON); 
-        """
-        cur.execute(raw_script)
-    except snowflake.connector.errors.ProgrammingError as e:
-        print(f'\t {e}')
-    
+        #  create raw JSON formatted data table
+        try:
+            db_addition = os.path.splitext(file_name)[0]
+            unique_raw_name = 'raw_comm_' + db_addition
+            raw_script = f'CREATE OR REPLACE TABLE {unique_raw_name} FROM @api_stage FILE_FORMAT = (TYPE = JSON);'
+            cur.execute(raw_script)
+        except snowflake.connector.errors.ProgrammingError as e:
+            print(f'\t {e}')
+            
+        
 
-     #  create flattened JSON formatted data table
-    try:
-        flattened_script = """
-            CREATE OR REPLACE TABLE flattened_parks_api_data as
-            SELECT VALUE
-            FROM raw_parks_api_data,
-            LATERAL FLATTEN(INPUT => SRC:data)
-        """
-        cur.execute(flattened_script)
-    except snowflake.connector.errors.ProgrammingError as e:
-        print(f'\t {e}')
-    finally:
-        conn.close()
+        #  create flattened JSON formatted data table
+        try:
+            unique_flat_name = 'flat_comm_' + db_addition
+            flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM raw_parks_api_data, LATERAL FLATTEN(INPUT => SRC:data)'
+            cur.execute(flattened_script)
+        except snowflake.connector.errors.ProgrammingError as e:
+            print(f'\t {e}')
+        finally:
+            # clear the stage of all files
+            cur.execute("REMOVE @api_stage")
+                
+    # end the Snowflake session
+    conn.close()
 
 
 
@@ -90,10 +98,6 @@ def get_poi_data():
         with open('parksrec.json', 'w') as f:
             json.dump(results, f, indent=4)
     
-    pass
-
-
-
 
 def get_community_data():
     # getting neighborhood,
@@ -120,7 +124,7 @@ def get_community_data():
         # create file name and url string
         file_name = k + '_data.json'
         url_string = url_base + v
-        
+
         data = requests.get(url_string, headers=header)
         
         results = data.json()
@@ -129,8 +133,6 @@ def get_community_data():
         file_path = os.path.join('JSON_Docs', file_name)
         with open(file_path, 'w') as f:
             json.dump(results, f, indent=4)
-        
-
 
 
 
@@ -178,7 +180,29 @@ create or replace table events as
 
 """
 
+"""
+    Notes on next step:
 
+    # Get a list of all the files in the JSON_Docs folder
+    folder_path = 'JSON_Docs'
+    file_list = os.listdir(folder_path)
+
+    # Loop through the list of files and perform an action on each file
+    for file_name in file_list:
+        file_path = os.path.join(folder_path, file_name)
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+            # Perform the desired action on the data in the file
+            # For example, print the data to the console
+            print(data)
+        
+        try:
+            pass
+        except snowflake.connector.errors.ProgrammingError as e:
+            print(f'\t {e}')
+        finally:
+            pass
+"""
 
 get_community_data()
 
