@@ -32,45 +32,45 @@ def main():
     # Call POI API endpoint, build DB's and insert rows
     get_poi_data(conn)
 
-    # # Get a list of all the files in the JSON_Docs folder
-    # folder_path = 'JSON_Docs'
-    # file_list = os.listdir(folder_path)
+    # Get a list of all the files in the JSON_Docs folder
+    folder_path = 'JSON_Docs'
+    file_list = os.listdir(folder_path)
 
-    # # Loop through the list of files and perform an action on each file
-    # for file_name in file_list:
-    #     unique_file_name = os.path.join('file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/JSON_Docs', file_name)
-    #     db_addition = os.path.splitext(file_name)[0]
+    # Loop through the list of files and perform a PUT on each file and create table from JSON data
+    for file_name in file_list:
+        unique_file_name = os.path.join('file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/JSON_Docs', file_name)
+        db_addition = os.path.splitext(file_name)[0]
 
-    #     # Stage the parks JSON data
-    #     try:
-    #         cur.execute(f'PUT {unique_file_name} @api_stage AUTO_COMPRESS=TRUE;')
-    #     except snowflake.connector.errors.ProgrammingError as e:
-    #         print(f'\t {e}')
+        # Stage the parks JSON data
+        try:
+            cur.execute(f'PUT {unique_file_name} @api_stage AUTO_COMPRESS=TRUE;')
+        except snowflake.connector.errors.ProgrammingError as e:
+            print(f'\t {e}')
 
 
-    #     #  create raw JSON formatted data table
-    #     try:
-    #         unique_raw_name = 'raw_comm_' + db_addition
-    #         raw_script = f"CREATE OR REPLACE TABLE {unique_raw_name} AS SELECT $1 FROM @api_stage (FILE_FORMAT => 'api_json_format');"
-    #         cur.execute(raw_script)
-    #     except snowflake.connector.errors.ProgrammingError as e:
-    #         print(f'\t {e}')
-    #     else:
-    #         # clear the stage of all files
-    #         cur.execute("REMOVE @api_stage")    
+        #  create raw JSON formatted data table
+        try:
+            unique_raw_name = 'raw_comm_' + db_addition
+            raw_script = f"CREATE OR REPLACE TABLE {unique_raw_name} AS SELECT $1 FROM @api_stage (FILE_FORMAT => 'api_json_format');"
+            cur.execute(raw_script)
+        except snowflake.connector.errors.ProgrammingError as e:
+            print(f'\t {e}')
+        else:
+            # clear the stage of all files
+            cur.execute("REMOVE @api_stage")    
         
 
-    #     #  create flattened JSON formatted data table for files that need it
-    #     if file_name in ('parksrec.json'):
-    #         try:
-    #             unique_flat_name = 'flat_comm_' + db_addition
-    #             # CALEB - need to make a change here to get flattened
-    #             flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM {unique_raw_name}, LATERAL FLATTEN(INPUT => SRC:data)'
-    #             cur.execute(flattened_script)
-    #         except snowflake.connector.errors.ProgrammingError as e:
-    #             print(f'\t {e}')
+        #  create flattened JSON formatted data table for files that need it
+        if file_name in ('parksrec.json'):
+            try:
+                unique_flat_name = 'flat_comm_' + db_addition
+                # CALEB - need to make a change here to get flattened
+                flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM {unique_raw_name}, LATERAL FLATTEN(INPUT => SRC:data)'
+                cur.execute(flattened_script)
+            except snowflake.connector.errors.ProgrammingError as e:
+                print(f'\t {e}')
     
-    # # CALEB - Need to clean up json files after they are loaded
+    # CALEB - Need to clean up json files after they are loaded
 
 
     # end the Snowflake session
@@ -95,15 +95,17 @@ def get_parks_rec():
 def get_poi_data(conn):
     #  Geoapify API for points of interest base url: https://api.geoapify.com/v2/places?PARAMS
     api_key = 'fca84109c53b4439aa9e4c2ca1348525'
-    url_map = {'jefferson': '5170cd374708505ac0596bf2479314cb4340f00101f901ff88150000000000c002099203104a6566666572736f6e20436f756e7479',
+    purl_map = {'jefferson': '5170cd374708505ac0596bf2479314cb4340f00101f901ff88150000000000c002099203104a6566666572736f6e20436f756e7479',
                'denver': '513795b35c0a385ac059fc7fdca68de14340f00101f9010b89150000000000c0020992030644656e766572',
                'boulder': '5114becfbee3565ac0597ff9b363da0b4440f00101f9010989150000000000c0020992030e426f756c64657220436f756e7479',
                'douglas': '51aa9a54167e3b5ac05959e5f0e533aa4340f00101f9010a89150000000000c0020992030e446f75676c617320436f756e7479',
                'adams': '51a148d03d9e155ac059ea97b4acd3ef4340f00101f9011289150000000000c0020992030c4164616d7320436f756e7479',
                'arapahoe': '51def06ba5b7155ac059a7b5c85f27d34340f00101f9011789150000000000c0020992030f4172617061686f6520436f756e7479',
                'larimer': '51ca1d3fe4815d5ac05930cf56d952554440f00101f901fb88150000000000c0020992030e4c6172696d657220436f756e7479',
-               'elpaso': '517fd481c5a1215ac059a907cc27836a4340f00101f9010789150000000000c0020992030e456c205061736f20436f756e7479'
+               'elpaso': '517fd481c5a1215ac059a907cc27836a4340f00101f9010789150000000000c0020992030e456c205061736f20436f756e7479',
+               'forsyth': '5111e5be7d000855c0591172f5bbdd1c4140f00101f901e4a20f0000000000c0020992030e466f727379746820436f756e7479'
                }
+    url_map = {'forsyth': '5111e5be7d000855c0591172f5bbdd1c4140f00101f901e4a20f0000000000c0020992030e466f727379746820436f756e7479'}
     poi = (
         'commercial.pet',
         'pet.veterinary',
@@ -131,8 +133,6 @@ def get_poi_data(conn):
     
     print('POI data done')
 
-
- 
 
 def get_community_data():
     # getting neighborhood,
@@ -217,30 +217,6 @@ create or replace table events as
 
     SELECT * from home_sales;
 
-"""
-
-"""
-    Notes on next step:
-
-    # Get a list of all the files in the JSON_Docs folder
-    folder_path = 'JSON_Docs'
-    file_list = os.listdir(folder_path)
-
-    # Loop through the list of files and perform an action on each file
-    for file_name in file_list:
-        file_path = os.path.join(folder_path, file_name)
-        with open(file_path, 'r') as f:
-            data = json.load(f)
-            # Perform the desired action on the data in the file
-            # For example, print the data to the console
-            print(data)
-        
-        try:
-            pass
-        except snowflake.connector.errors.ProgrammingError as e:
-            print(f'\t {e}')
-        finally:
-            pass
 """
 
 main()
