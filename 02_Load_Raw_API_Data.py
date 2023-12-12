@@ -77,8 +77,6 @@ def main():
     conn.close()
 
 
-
-
 def get_parks_rec():
     apiKey = {"X-Api-Key": "mLeZrzDzwF8fhMmxnhTg4RvgTSclubh8vt4DAFRg"}
     target_location = 'JSON_Docs/parksrec.json'
@@ -174,50 +172,6 @@ def get_community_data():
             with open(file_path, 'w') as f:
                 json.dump(results, f, indent=4)
 
-
-
-"""
-Inside get_poi_data() I need to do the following:
-1 search for each location for the important poi's
-    NOTE: see if I can search multiple categories like restaurants and parks and groceries etc etc
-2 Follow the method from get_community_data() to get and upload all JSON content to raw DB's
-
-
-Below: src is the column of JSON data in raw script
-"::" is to cast as a type - if omitted the type is variant
-VALUE is the output of the FLATTEN function including the values for the flattened data
-
-create or replace table events as
-  select
-    src:device_type::string                             as device_type
-  , src:version::string                                 as version
-  , value:f::number                                     as f
-  , value:rv::variant                                   as rv
-  , value:t::number                                     as t
-  , value:v.ACHZ::number                                as achz
-  , value:v.ACV::number                                 as acv
-  , value:v.DCA::number                                 as dca
-  , value:v.DCV::number                                 as dcv
-  , value:v.ENJR::number                                as enjr
-  , value:v.ERRS::number                                as errs
-  , value:v.MXEC::number                                as mxec
-  , value:v.TMPI::number                                as tmpi
-  , value:vd::number                                    as vd
-  , value:z::number                                     as z
-  from
-    raw_source
-  , lateral flatten ( input => SRC:events );
-
-  
-    The SUBSTR , SUBSTRING function to extract city and state values from state_city JSON key.
-    The TO_TIMESTAMP / TO_TIMESTAMP_* to cast the sale_date JSON key value to a timestamp.
-
-
-    Execute the following query to verify data is copied.
-
-    SELECT * from home_sales;
-
-"""
 
 main()
 
