@@ -247,7 +247,7 @@ CREATE OR REPLACE table COLORADO.ANALYTICS.demographics(
     population_5yr_proj number,
     population_density float,
     population_urban float,
-    populatino_rural float,
+    population_rural float,
     population_poverty float,
     num_households_2020 number,
     avg_household_size float,

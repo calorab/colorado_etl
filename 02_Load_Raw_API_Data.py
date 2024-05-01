@@ -1,6 +1,5 @@
 #  first line
 
-# need snowpark, pandas,
 import os
 import snowflake.connector 
 import requests
@@ -12,8 +11,8 @@ import json
 #  Main function
 def main():
     # Make the API calls and create files
-    # get_community_data()
-    # get_parks_rec()
+    get_community_data()
+    get_parks_rec()
 
     # Set up connection to Snowflake
     conn = snowflake.connector.connect(
@@ -103,7 +102,7 @@ def get_poi_data(conn):
                'elpaso': '517fd481c5a1215ac059a907cc27836a4340f00101f9010789150000000000c0020992030e456c205061736f20436f756e7479',
                'forsyth': '5111e5be7d000855c0591172f5bbdd1c4140f00101f901e4a20f0000000000c0020992030e466f727379746820436f756e7479'
                }
-    url_map = {'forsyth': '5111e5be7d000855c0591172f5bbdd1c4140f00101f901e4a20f0000000000c0020992030e466f727379746820436f756e7479'}
+    # url_map = {'forsyth': '5111e5be7d000855c0591172f5bbdd1c4140f00101f901e4a20f0000000000c0020992030e466f727379746820436f756e7479'}
     poi = (
         'commercial.pet',
         'pet.veterinary',
@@ -114,7 +113,7 @@ def get_poi_data(conn):
         'catering.restaurant.sushi'
     )
     cur = conn.cursor()
-    for c,l in url_map.items():
+    for c,l in purl_map.items():
         db_name = c + '_poi_data'
         print(f'Running {c} loop...')
         cur.execute(f'DROP TABLE IF EXISTS {db_name}')
