@@ -59,71 +59,70 @@ purl_map = {
 
 #  Main function
 def main():
+    try:
     # Make the API calls and create files
-    get_community_data()
-    get_parks_rec()
+        get_community_data()
+        get_parks_rec()
 
-    # Set up connection to Snowflake
-    conn = snowflake.connector.connect(
-        user=SNOWFLAKE_USER,
-        password=SNOWFLAKE_PASSWORD,
-        account=SNOWFLAKE_ACCOUNT
-    )
+        # Set up connection to Snowflake
+        conn = snowflake.connector.connect(
+            user=SNOWFLAKE_USER,
+            password=SNOWFLAKE_PASSWORD,
+            account=SNOWFLAKE_ACCOUNT
+        )
+        logging.info('Connected to Snowflake')
+        # Use the connection for operations
+        with conn.cursor() as cur:
+            setup_snowflake(cur)
+            get_poi_data(cur)
+            process_json_files(cur)
+            
+        logging.info('Data processing complete')
+    except Exception as e:
+        logging.error(f'Error in main(): {e}')
+    finally:
+        conn.close()
+
+
+def stage_data(cur, file_name):
+    try:
+        cur.execute(f'PUT file://{os.path.abspath(file_name)} @api_stage AUTO_COMPRESS=TRUE;')
+        logging.info(f'Staged file {file_name}')
+    except snowflake.connector.errors.ProgrammingError as e:
+        logging.error(f'Error staging file {file_name}: {e}')
+
+def create_raw_table(cur, db_addition):
+    try:
+        unique_raw_name = 'raw_comm_' + db_addition
+        raw_script = f"CREATE OR REPLACE TABLE {unique_raw_name} AS SELECT $1 FROM @api_stage (FILE_FORMAT => 'api_json_format');"
+        cur.execute(raw_script)
+        logging.info(f'Created raw table {unique_raw_name}')
+    except snowflake.connector.errors.ProgrammingError as e:
+        logging.error(f'Error creating raw table {db_addition}: {e}')
+
+def clear_stage(cur):
+    cur.execute("REMOVE @api_stage")
+    logging.info('Cleared stage')
+
+
+def setup_snowflake(cur):
+    cur.execute(f'USE ROLE {SNOWFLAKE_ROLE};')
+    cur.execute(f'USE DATABASE {SNOWFLAKE_DATABASE};')
+    cur.execute(f'USE SCHEMA {SNOWFLAKE_SCHEMA};')
+    cur.execute(f'USE WAREHOUSE {SNOWFLAKE_WAREHOUSE};')
+    logging.info('Snowflake setup complete')
     
-    # Create a the snowflake cursor object
-    cur = conn.cursor()
-    cur.execute('USE ROLE COL_ADMIN;')
-    cur.execute('USE DATABASE COLORADO;')
-    cur.execute('USE SCHEMA EXTERNAL;')
-    cur.execute('USE WAREHOUSE COL_WH;')
-
-    # Call POI API endpoint, build DB's and insert rows
-    get_poi_data(conn)
-
-    # Get a list of all the files in the JSON_Docs folder
+def process_json_files(cur):
     folder_path = 'JSON_Docs'
     file_list = os.listdir(folder_path)
 
-    # Loop through the list of files and perform a PUT on each file and create table from JSON data
     for file_name in file_list:
-        unique_file_name = os.path.join('file:///Users/AllHeart/Desktop/Projects_2023/coloradoproject_snowflake/JSON_Docs', file_name)
+        unique_file_name = os.path.join(folder_path, file_name)
         db_addition = os.path.splitext(file_name)[0]
-
-        # Stage the parks JSON data
-        try:
-            cur.execute(f'PUT {unique_file_name} @api_stage AUTO_COMPRESS=TRUE;')
-        except snowflake.connector.errors.ProgrammingError as e:
-            logging.error(f'\t {e}')
-
-
-        #  create raw JSON formatted data table
-        try:
-            unique_raw_name = 'raw_comm_' + db_addition
-            raw_script = f"CREATE OR REPLACE TABLE {unique_raw_name} AS SELECT $1 FROM @api_stage (FILE_FORMAT => 'api_json_format');"
-            cur.execute(raw_script)
-        except snowflake.connector.errors.ProgrammingError as e:
-            logging.error(f'\t {e}')
-        else:
-            # clear the stage of all files
-            cur.execute("REMOVE @api_stage")    
+        stage_data(cur, unique_file_name)
+        create_raw_table(cur, db_addition)
+        clear_stage(cur)
         
-
-        #  create flattened JSON formatted data table for files that need it
-        if file_name in ('parksrec.json'):
-            try:
-                unique_flat_name = 'flat_comm_' + db_addition
-                # CALEB - need to make a change here to get flattened
-                flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM {unique_raw_name}, LATERAL FLATTEN(INPUT => SRC:data)'
-                cur.execute(flattened_script)
-            except snowflake.connector.errors.ProgrammingError as e:
-                logging.error(f'\t {e}')
-    
-    # CALEB - Need to clean up json files after they are loaded
-
-
-    # end the Snowflake session
-    conn.close()
-
 
 def get_parks_rec():
     #  Get parks data
@@ -136,9 +135,8 @@ def get_parks_rec():
             json.dump(results, f, indent=4)
 
     
-def get_poi_data(conn):
+def get_poi_data(cur):
     #  Get Point of Interests data
-    cur = conn.cursor()
     for c,l in purl_map.items():
         db_name = c + '_poi_data'
         logging.info(f'Running {c} loop...')
@@ -159,7 +157,7 @@ def get_poi_data(conn):
 
 def get_community_data():
     # getting neighborhood data:
-    logging.info('getting community data...')
+    logging.info('Getting community data...')
     # Create the folder for the JSON documents if it doesn't exist
     if not os.path.exists('JSON_Docs'):
         os.makedirs('JSON_Docs')
@@ -167,21 +165,17 @@ def get_community_data():
     
     for k,v in geo_ids.items():
 
-        # create file name and url string
-        if k == "El Paso":
-            file_name = 'ElPaso_data.json'
-        else:
-            file_name = k + '_data.json'
-        
+        # create file name and url string and fetch data
+        file_name = 'ElPaso_data.json' if k == "El Paso" else f'{k}_data.json'
         url_string = comm_url_base + v
         data = requests.get(url_string, headers=comm_header)
         results = data.json()
-        logging.info(f'Got {k} community data')
+        
         # Write the JSON data to a file in the JSON_Docs folder
         file_path = os.path.join('JSON_Docs', file_name)
-        if not os.path.exists(file_path):
-            with open(file_path, 'w') as f:
-                json.dump(results, f, indent=4)
+        with open(file_path, 'w') as f:
+            json.dump(results, f, indent=4)
+        logging.info(f'Fetched and saved data for {k}')
 
 
 if __name__ == '__main__':
