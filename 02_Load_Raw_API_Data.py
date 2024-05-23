@@ -93,7 +93,7 @@ def main():
         try:
             cur.execute(f'PUT {unique_file_name} @api_stage AUTO_COMPRESS=TRUE;')
         except snowflake.connector.errors.ProgrammingError as e:
-            print(f'\t {e}')
+            logging.error(f'\t {e}')
 
 
         #  create raw JSON formatted data table
@@ -102,7 +102,7 @@ def main():
             raw_script = f"CREATE OR REPLACE TABLE {unique_raw_name} AS SELECT $1 FROM @api_stage (FILE_FORMAT => 'api_json_format');"
             cur.execute(raw_script)
         except snowflake.connector.errors.ProgrammingError as e:
-            print(f'\t {e}')
+            logging.error(f'\t {e}')
         else:
             # clear the stage of all files
             cur.execute("REMOVE @api_stage")    
@@ -116,7 +116,7 @@ def main():
                 flattened_script = f'CREATE OR REPLACE TABLE {unique_flat_name} as SELECT VALUE FROM {unique_raw_name}, LATERAL FLATTEN(INPUT => SRC:data)'
                 cur.execute(flattened_script)
             except snowflake.connector.errors.ProgrammingError as e:
-                print(f'\t {e}')
+                logging.error(f'\t {e}')
     
     # CALEB - Need to clean up json files after they are loaded
 
@@ -141,7 +141,7 @@ def get_poi_data(conn):
     cur = conn.cursor()
     for c,l in purl_map.items():
         db_name = c + '_poi_data'
-        print(f'Running {c} loop...')
+        logging.info(f'Running {c} loop...')
         cur.execute(f'DROP TABLE IF EXISTS {db_name}')
         cur.execute(f'CREATE TABLE IF NOT EXISTS {db_name} (county TEXT, topic Text, num_of_features NUMBER)')
         location = str(c)
@@ -152,14 +152,14 @@ def get_poi_data(conn):
             feature_length = len(data['features'])
             cur.execute(f"INSERT INTO {db_name} VALUES ('{location}','{point}', '{feature_length}')")
     
-        print(f'{c} loop done')
+        logging.info(f'{c} loop done')
     
-    print('POI data done')
+    logging.info('POI data done')
 
 
 def get_community_data():
     # getting neighborhood data:
-
+    logging.info('getting community data...')
     # Create the folder for the JSON documents if it doesn't exist
     if not os.path.exists('JSON_Docs'):
         os.makedirs('JSON_Docs')
@@ -176,7 +176,7 @@ def get_community_data():
         url_string = comm_url_base + v
         data = requests.get(url_string, headers=comm_header)
         results = data.json()
-
+        logging.info(f'Got {k} community data')
         # Write the JSON data to a file in the JSON_Docs folder
         file_path = os.path.join('JSON_Docs', file_name)
         if not os.path.exists(file_path):
